@@ -1,5 +1,4 @@
 import { ITool } from './toolInterface';
-import { ExampleTool } from './exampleTool';
 import { weatherTool } from './weatherTool';
 import OpenAI from 'openai';
 import { ToolCreatorTool } from '../toolCreator';
@@ -7,7 +6,6 @@ export class ToolRegistry {
   private tools: Map<string, ITool> = new Map();
 
   constructor() {
-    // this.registerTool(new ExampleTool()); // Temporarily disabled AGAIN
     this.registerTool(weatherTool);
     this.registerTool(new ToolCreatorTool());
     // Register more tools here as they are created

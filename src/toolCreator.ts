@@ -32,10 +32,6 @@ export class ToolCreatorTool implements ITool {
         return JSON.stringify({ success: false, error: "Missing tool_name or tool_requirements_free_text" } as ToolCreationResult);
       }
 
-      // Construct ToolSpecification for createToolWithLLM
-      // For now, we'll use the requirements text as the main description
-      // and let createToolWithLLM's prompt guide the LLM for schema/output if it can infer.
-      // More sophisticated parsing/mapping could be added here later.
       const toolSpec: ToolSpecification = {
         tool_name: toolName,
         tool_description: requirementsText, // Using free_text as the core description
@@ -60,13 +56,11 @@ export class ToolCreatorTool implements ITool {
   }
 }
 
-// Define a type for the expected structure of the tool specification
 export interface ToolSpecification {
   tool_name: string;
   tool_description: string;
-  input_parameters_schema: any; // JSON Schema object
-  output_description: string; // Description of what the execute function should return (e.g., "a JSON string with the sum")
-  // Potentially add: example_usage: string;
+  input_parameters_schema: any; 
+  output_description: string; 
 }
 
 export interface ToolCreationResult {
@@ -79,8 +73,6 @@ export interface ToolCreationResult {
 function generateToolCreationPrompt(toolSpec: ToolSpecification): string {
   const schemaString = JSON.stringify(toolSpec.input_parameters_schema, null, 2);
 
-  // Instruct the LLM to generate a TypeScript class implementing ITool
-  // and to only output the code.
   return `
 You are an expert TypeScript programmer. Your task is to generate the TypeScript code for a new command-line tool.
 The tool must implement the ITool interface:
@@ -109,7 +101,6 @@ Make sure to handle potential errors during argument parsing or execution and re
 
 Example of a simple tool class structure (the ITool interface will be available in the scope where this code is saved, so no import for ITool is needed in the generated code block itself):
 \`\`\`typescript
-// No import for ITool needed here, assume it's globally available or in the same module context.
 export default class ${toolSpec.tool_name.charAt(0).toUpperCase() + toolSpec.tool_name.slice(1)}Tool implements ITool {
   public name = "${toolSpec.tool_name}";
   public description = "${toolSpec.tool_description}";
@@ -123,8 +114,11 @@ export default class ${toolSpec.tool_name.charAt(0).toUpperCase() + toolSpec.too
       // Replace the line below with actual implementation.
       const result = { message: "Tool ${toolSpec.tool_name} executed successfully with args: ", received_args: args }; 
       return JSON.stringify(result);
-    } catch (error: any) {
-      return JSON.stringify({ error: error.message || "Failed to execute ${toolSpec.tool_name}" });
+    } catch (error) {
+      if (error instanceof Error) {
+        return JSON.stringify({ error: error.message });
+      }
+      return JSON.stringify({ error: "An unknown error occurred during execution of ${toolSpec.tool_name}" });
     }
   }
 }
@@ -144,24 +138,17 @@ export async function createToolWithLLM(toolSpec: ToolSpecification): Promise<To
   console.log(`Attempting to generate tool: ${toolSpec.tool_name}`);
   const codegenPrompt = generateToolCreationPrompt(toolSpec);
 
-  // For now, let's use a simplified conversation for the code generation LLM.
-  // It only gets the system instruction (our codegenPrompt).
-  const codeGenConversation: Conversation = { // Make sure Conversation is imported or defined if not global
+  const codeGenConversation: Conversation = { 
     messages: [{ role: "system", content: codegenPrompt }]
   };
 
-  // TODO: Consider using a specific model for code generation if available and configured.
-  // For now, using the default sendMessageToOpenAI which uses the main model.
-  // The user message can be minimal as the system prompt is very directive.
   const llmResponse = await sendMessageToOpenAI(
     "Generate the tool code as per the system prompt.", 
     codeGenConversation, 
-    [] // No tools should be available/offered to the code-gen LLM
+    [] 
   );
 
   if (llmResponse && llmResponse.content) {
-    // Expecting the LLM to return ONLY the code as a string.
-    // We might need to strip markdown backticks if the LLM adds them.
     let generatedCode = llmResponse.content.trim();
     if (generatedCode.startsWith("```typescript")) {
       generatedCode = generatedCode.substring("```typescript".length);

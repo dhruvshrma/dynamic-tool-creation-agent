@@ -27,3 +27,6 @@ lerna-debug.log*
 src/tools/generated/
 old/
 __mocks__/
+*.txt
+*.bak
+*.md
