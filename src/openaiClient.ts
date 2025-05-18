@@ -42,7 +42,7 @@ export async function sendMessageToOpenAI(
 
     const requestBody: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
       messages: messagesToSend as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
-      model: "gpt-4o", // Or your preferred model, ensure it supports tool calling
+      model: "gpt-4o-mini", // Or your preferred model, ensure it supports tool calling
     };
 
     if (availableTools && availableTools.length > 0) {

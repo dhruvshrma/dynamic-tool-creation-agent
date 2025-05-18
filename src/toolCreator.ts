@@ -5,7 +5,7 @@ import { Conversation } from './types'; // Moved import to top for clarity
 
 export class ToolCreatorTool implements ITool {
   public name: string = "request_tool_creation";
-  public description: string = "Call this function to request the creation of a new tool. Provide the tool name and a free-text description of its requirements.";
+  public description: string = "Call this function to request the creation of a new tool. Provide the tool name and a free-text description of its requirements. Important: Before creating a new tool, consider if an existing similar tool can be read, understood, and modified using your file editing capabilities (e.g., `read_file`, `edit_file`). Prefer updating an existing tool if it's more efficient or appropriate than creating a new one from scratch.";
   public parametersSchema: any = {
     type: "object",
     properties: {
@@ -100,38 +100,7 @@ The execute method will receive arguments as a JSON string, which it should pars
 Make sure to handle potential errors during argument parsing or execution and return an error object as a JSON string (e.g., { "error": "message" }).
 
 Example of a simple tool class structure (the ITool interface will be available in the scope where this code is saved, so no import for ITool is needed in the generated code block itself):
-\`\`\`typescript
-export default class ${toolSpec.tool_name.charAt(0).toUpperCase() + toolSpec.tool_name.slice(1)}Tool implements ITool {
-  public name = "${toolSpec.tool_name}";
-  public description = "${toolSpec.tool_description}";
-  // IMPORTANT: The parametersSchema below MUST be the JSON object, not a string representation.
-  public parametersSchema = ${JSON.stringify(toolSpec.input_parameters_schema, null, 2)};
-
-  async execute(argsString: string): Promise<string> {
-    try {
-      const args = JSON.parse(argsString);
-      // TODO: Implement tool logic using 'args' based on tool_description and output_description.
-      // Replace the line below with actual implementation.
-      const result = { message: "Tool ${toolSpec.tool_name} executed successfully with args: ", received_args: args }; 
-      return JSON.stringify(result);
-    } catch (error) {
-      if (error instanceof Error) {
-        return JSON.stringify({ error: error.message });
-      }
-      return JSON.stringify({ error: "An unknown error occurred during execution of ${toolSpec.tool_name}" });
-    }
-  }
-}
-\`\`\`
-
-Now, generate the code for the tool: ${toolSpec.tool_name}.
-Ensure the generated class name is PascalCase (e.g., ${toolSpec.tool_name.charAt(0).toUpperCase() + toolSpec.tool_name.slice(1)}Tool).
-The 'name' property of the class instance MUST exactly match '${toolSpec.tool_name}'.
-The 'description' property of the class instance MUST exactly match '${toolSpec.tool_description}'.
-The 'parametersSchema' property of the class instance MUST be the actual JSON object matching the Input Parameters JSON Schema provided (it should not be a stringified version of the schema in the generated code, but the object itself).
-Remember to only output the TypeScript code as a single block.
-At the top use the import statement: import { ITool } from '../toolInterface';
-  `;
+`
 }
 
 export async function createToolWithLLM(toolSpec: ToolSpecification): Promise<ToolCreationResult> {
