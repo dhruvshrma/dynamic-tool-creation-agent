@@ -1,29 +1,27 @@
 import readline from 'readline';
-import fs from 'fs'; // Import fs for file operations
-import path from 'path'; // Import path for path operations
-import { execSync } from 'child_process'; // Import execSync
+import fs from 'fs'; 
+import path from 'path'; 
+import { execSync } from 'child_process'; 
 import { sendMessageToOpenAI } from './openaiClient';
-import { Message, Conversation } from './types'; // Removed ToolCall as it's implicitly used
+import { Message, Conversation } from './types'; 
 import { ToolRegistry } from './tools/toolRegistry';
 import { getMainSystemPrompt } from './prompts';
-import { ToolCreationResult } from './toolCreator'; // Only import ToolCreationResult
+import { ToolCreationResult } from './toolCreator'; 
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// ANSI escape codes for colors
 const RESET = '\x1b[0m';
 const YELLOW = '\x1b[33m';
 const BLUE = '\x1b[34m';
 const GREEN = '\x1b[32m';
-const MAGENTA = '\x1b[35m'; // For tool messages
-const RED = '\x1b[31m'; // For errors
+const MAGENTA = '\x1b[35m'; 
+const RED = '\x1b[31m'; 
 
-const MAX_TOOL_RESPONSE_CYCLES = 10; // Safety break for tool call loops
+const MAX_TOOL_RESPONSE_CYCLES = 10; 
 
 const toolRegistry = new ToolRegistry();
 
-// Use the imported function to generate the system prompt
 const systemPromptContent = getMainSystemPrompt(toolRegistry.getOpenAITools());
 let systemPromptMessage: Message = {
   role: "system",
@@ -75,7 +73,6 @@ async function processLLMResponse(assistantMessage: Message | null, cyclesRemain
 
         if (toolCreator) {
           try {
-            // ToolCreatorTool.execute will call createToolWithLLM and return JSON string of ToolCreationResult
             const toolResultString = await toolCreator.execute(toolCall.function.arguments);
             const creationResult = JSON.parse(toolResultString) as ToolCreationResult;
             
@@ -86,9 +83,8 @@ async function processLLMResponse(assistantMessage: Message | null, cyclesRemain
             if (creationResult.success && creationResult.toolCode && creationResult.toolName) {
               console.log(`${GREEN}Tool '${creationResult.toolName}' generated successfully by LLM.${RESET}`);
               createdToolName = creationResult.toolName;
-              const toolFileName = `${createdToolName.replace(/[^a-zA-Z0-9_]/g, '_')}.ts`; // Sanitize tool name for filename
+              const toolFileName = `${createdToolName.replace(/[^a-zA-Z0-9_]/g, '_')}.ts`; 
 
-              // Save to src/tools/generated
               const generatedSrcToolsDir = path.resolve(__dirname, '..', 'src', 'tools', 'generated');
               const toolSrcFilePath = path.join(generatedSrcToolsDir, toolFileName);
 
@@ -100,22 +96,18 @@ async function processLLMResponse(assistantMessage: Message | null, cyclesRemain
               
               try {
                 console.log(`${YELLOW}Attempting to compile the project with the new tool...${RESET}`);
-                execSync('npx tsc', { stdio: 'inherit' }); // Compile the project
+                execSync('npx tsc', { stdio: 'inherit' }); 
                 console.log(`${GREEN}TypeScript compilation finished (or attempted).${RESET}`);
               } catch (compileError: any) {
                 console.error(`${RED}Error during TypeScript compilation: ${compileError.message}${RESET}`);
-                // Decide if you want to stop or try to import anyway, for now, we'll log and continue
-                // The import will likely fail if compilation failed catastrophically.
+             
               }
 
               try {
-                // Dynamic import path assumes 'main.js' is in 'dist/' and tools are in 'dist/tools/generated/'
-                // The path is relative to 'dist/main.js'
                 const relativeToolImportPath = `./tools/generated/${toolFileName.replace('.ts', '.js')}`;
                 console.log(`${YELLOW}Attempting to dynamically import compiled tool from: ${relativeToolImportPath} (relative to dist/main.js)${RESET}`);
                 
-                // Add a small delay to give TSC a chance if running in watch mode
-                // await new Promise(resolve => setTimeout(resolve, 1000)); // Removed, execSync should handle waiting
+                await new Promise(resolve => setTimeout(resolve, 1000)); 
 
                 const newToolModule = await import(relativeToolImportPath);
 
@@ -148,7 +140,7 @@ async function processLLMResponse(assistantMessage: Message | null, cyclesRemain
             const toolResponseMessage: Message = {
               role: "tool",
               tool_call_id: toolCall.id,
-              name: 'request_tool_creation', // Keep original tool name for OpenAI
+              name: 'request_tool_creation', 
               content: toolResponseMessageContent,
             };
             conversation.messages.push(toolResponseMessage);
@@ -164,7 +156,6 @@ async function processLLMResponse(assistantMessage: Message | null, cyclesRemain
             conversation.messages.push(errorResponseMessage);
           }
         } else {
-          // This case should ideally not happen if ToolCreatorTool is always registered
           console.error(`${RED}Critical Error: 'request_tool_creation' (ToolCreatorTool) not found in registry!${RESET}`);
           const criticalErrorMsg: Message = {
             role: "tool",
@@ -175,7 +166,6 @@ async function processLLMResponse(assistantMessage: Message | null, cyclesRemain
           conversation.messages.push(criticalErrorMsg);
         }
       } else {
-        // Handle actual tool execution for other tools
         aRealToolWasExecuted = true;
         console.log(`${MAGENTA}AI is using tool: ${toolCall.function.name}...${RESET}`);
         console.log(`${MAGENTA}  Tool Call ID: ${toolCall.id}, Args: ${toolCall.function.arguments}${RESET}`);
@@ -223,7 +213,6 @@ async function processLLMResponse(assistantMessage: Message | null, cyclesRemain
         nextMessageContent = `The attempt to create a requested tool has concluded. Please proceed based on available tools or by rephrasing your request.`;
       }
     } else if (!aRealToolWasExecuted && assistantMessage.tool_calls.length > 0) {
-      // This case might occur if only request_tool_creation was called but failed before toolCreationAttempted was true, or other edge cases.
       nextMessageContent = "A tool call was made, but it seems no standard tool was executed. Please assess the situation and proceed.";
     }
     
@@ -260,9 +249,8 @@ rl.on('line', async (line) => {
       else if (msg.role === 'system') {
          color = YELLOW; 
          prefix = 'System'; 
-         // Avoid logging potentially very long system prompts every time in history
          console.log(`${color}${prefix}: ${RESET}(System prompt content not shown for brevity. Current length: ${msg.content?.length || 0})`);
-         return; // Skip detailed content for system messages in history view
+         return; 
       }
       
       let displayContent = msg.content;
@@ -275,8 +263,7 @@ rl.on('line', async (line) => {
     return;
   }
   if (userInput.toLowerCase() === 'clear') {
-    // Re-initialize systemPromptMessage and conversation
-    systemPromptMessage.content = getMainSystemPrompt(toolRegistry.getOpenAITools()); // Get fresh prompt, in case tools changed
+    systemPromptMessage.content = getMainSystemPrompt(toolRegistry.getOpenAITools()); 
     conversation.messages = [systemPromptMessage]; 
     console.log(`${YELLOW}Conversation history cleared (system prompt refreshed).${RESET}`);
     rl.prompt();
@@ -296,6 +283,8 @@ rl.on('line', async (line) => {
   
   rl.prompt();
 }).on('close', () => {
-  process.exit(0);
+  if (process.env.NODE_ENV !== 'test') {
+    process.exit(0);
+  }
 });
 
